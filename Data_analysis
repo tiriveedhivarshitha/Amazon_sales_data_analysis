@@ -1,0 +1,116 @@
+create table amazon_sales(
+indexx int, 
+order_id int unique,
+sale_date date,
+status varchar(30), 
+fulfilment varchar(15), 
+sales_channel VARCHAR(50),
+ship_service_level VARCHAR(20),
+stylee varchar(15), 
+sku varchar(20) unique, 
+categoryy varchar(20)
+);
+alter table  amazon_sales add  (sizee varchar(10),
+asian varchar(20),
+courier_status varchar(10),
+qty int, 
+amount int, 
+ship_city varchar(20),
+ship_state varchar(20),
+ship_postal_code varchar(5));
+                                
+ ALTER TABLE amazon_sales 
+ADD (
+  sizee VARCHAR2(10),
+  asin VARCHAR2(20),
+  courier_status VARCHAR2(10),
+  qty INT,
+  amount INT,
+  ship_city VARCHAR2(20),
+  ship_state VARCHAR2(20),
+  ship_postal_code VARCHAR2(5)
+);
+
+select *from amazon_sales; 
+alter table amazon_sales rename column asian to asin;
+alter table amazon_sales modify amount float;
+alter table amazon_sales  modify ship_postal_code int;
+alter table amazon_sales modify sku varchar(30);
+alter table amazon_sales rename column sale_date to sales_date;
+alter table amazon_sales modify order_id varchar(40);
+select *from amazon_sales
+fetch first 10 rows only;
+
+--1.How many total rows (sales records) are in the dataset?
+select count(*) as no_of_rows from amazon_sales;
+
+--What is the total revenue generated across all sales?
+select sum(amount) as total_revenue from amazon_sales;
+
+--3.Which product category had the highest total quantity sold?
+select distinct categoryy, qty as max_qty from amazon_sales where qty= any(select max(qty) from amazon_sales); 
+
+--4.What is the average sales amount per transaction?
+select round(avg(amount),4) as avg_sales from amazon_sales;
+
+--5.How many unique SKUs were sold?
+select count(distinct sku) from amazon_sales;
+
+--6.What are the top 5 most sold SKUs based on quantity?
+select sku,sum(qty) as sold_qty from amazon_sales
+group by sku
+order by sold_qty desc
+fetch first 5 rows only;
+
+--7.Which month had the highest total sales revenue?
+select extract(month from sales_date) as highest_sale_revenue, sum(amount) as high_revenue from amazon_sales
+group by extract(month from sales_date)
+having sum(amount)=
+(select sum(amount) as amt from amazon_sales group by extract (month from sales_date) order by amt desc fetch first 1 row only);
+ 
+--8.which fulfillment method was used most frequently
+ SELECT fulfilment AS most_fulfilment,
+       COUNT(*) AS usage_count
+FROM amazon_sales
+GROUP BY fulfilment
+ORDER BY usage_count DESC
+FETCH FIRST 1 ROW ONLY;
+
+--9. how many sales were made for each product size
+select sizee, count(*) as no_of_sales from amazon_sales
+group by sizee;
+
+--10./*10.Analyze total sales amount and quantity breakdown by product categories and sizes. 
+     Identify which categories and size segments contribute most to revenue and volume*/
+select categoryy, sizee, sum(amount) as total_sales_amount, sum(qty) as quantity
+from amazon_sales
+group by categoryy,sizee
+order by total_sales_amount desc, quantity desc
+fetch first 1 row only;
+
+/*11.Find average sales amount and quantities for delivered orders 
+  segmented by shipping states to understand regional sales efficiency.*/
+select ship_state,round(avg(amount),4) as avg_amt, sum(qty) as sold_qty from amazon_sales
+where courier_status='Shipped'
+group by ship_state;
+
+/*12.Calculate order counts and total sales grouped by sales channel and fulfillment type to compare their performance.*/
+select sales_channel, fulfilment,count(*) as ord_cnt, sum(amount) as total_sales 
+from amazon_sales 
+group by sales_channel, fulfilment;
+
+/*13.Determine the top three best-selling product styles within each product category based on total sales revenue*/
+select distinct categoryy, stylee, amount
+from amazon_sales a
+where amount=(select max(amount) from amazon_sales b where a.categoryy=b.categoryy)
+order by amount desc
+fetch first 3 rows only;
+
+/*14Track the monthly sales quantities for the top 5 SKUs that have the highest total quantity sold across the dataset.*/
+select extract(month from sales_date) as sales_mnt, sum(qty) as high_qty from(select sales_date, qty from amazon_sales order by qty desc fetch first 5 rows only ) 
+group by extract(month from sales_date);
+
+/*15.Calculate the percentage contribution of each shipping city to the overall sales in its shipping state, 
+      to identify key cities driving state-level sales.*/
+select a.ship_city, round((sum(a.amount)*100)/(select  sum(b.amount) from amazon_sales b where a.ship_state=b.ship_state),4) as con_percentage 
+           from amazon_sales a group by a.ship_city,ship_state;
